@@ -671,6 +671,7 @@ set "PS1=%TEMP%\vk_gpu_%RANDOM%.ps1"
 >>"%PS1%" echo(if($a.Count -gt 0 -or $k){$ok=1}else{$ok=0}
 >>"%PS1%" echo(Write-Output "$ok;$n"
 for /f "usebackq tokens=1* delims=;" %%a in (`powershell -NoProfile -ExecutionPolicy Bypass -File "%PS1%"`) do (set "GPU_OK=%%a" & set "GPU_NAME=%%b")
+if not defined GPU_NAME set "GPU_NAME=unknown GPU"
 del /q "%PS1%" 2>nul
 if not defined VULKAN_SDK goto :gc_note
 if not exist "%VULKAN_SDK%\Bin\vulkaninfoSDK.exe" goto :gc_note
@@ -814,13 +815,14 @@ git -C "%RP%" -c core.longpaths=true submodule update -q --init --recursive --fo
 git -C "%RP%" -c core.longpaths=true submodule foreach -q --recursive git config core.longpaths true
 exit /b 0
 :pip_wheel
-rem %1 package, %2 version: only that version's wheel is replaced, other versions in dist are kept
+rem %1 package, %2 version: only that version's wheel is replaced, other versions in dist are kept. Exit codes go into
+rem PIPRC, never RC: CMake and MSVC builds read RC from the environment as the resource compiler
 del /q "%DIST%\%~1-%~2+*-%TAG%-*.whl" "%DIST%\%~1-%~2-%TAG%-*.whl" 2>nul
 pushd "%SRC%\%~1"
 "%PY%" -m pip wheel . --no-build-isolation --no-deps -v -w "%DIST%"
-set "RC=%ERRORLEVEL%"
+set "PIPRC=%ERRORLEVEL%"
 popd
-if not "%RC%"=="0" exit /b 1
+if not "%PIPRC%"=="0" exit /b 1
 set "WHL="
 for %%f in ("%DIST%\%~1-%~2+*-%TAG%-*.whl" "%DIST%\%~1-%~2-%TAG%-*.whl") do set "WHL=%%~ff"
 if not defined WHL (echo [vk-build] ERROR: no %~1 wheel was produced & exit /b 1)
@@ -864,9 +866,9 @@ rem requirements-build.txt, which they include, is installed above
 set "REQ=%TEMP%\vk_requirements_%RANDOM%.txt"
 findstr /v /i /r /c:"^lintrunner" /c:"^-r " "%SRC%\torch\requirements.txt" > "%REQ%"
 "%PY%" -m pip install -q -r "%REQ%"
-set "RC=%ERRORLEVEL%"
+set "PIPRC=%ERRORLEVEL%"
 del /q "%REQ%" 2>nul
-if not "%RC%"=="0" exit /b 1
+if not "%PIPRC%"=="0" exit /b 1
 :bt_env
 rem a CPU BLAS like the official wheels: without one torch falls back to Eigen's BLAS, much slower matmuls, and has no
 rem LAPACK. x64: pip's mkl-static, linked in statically and sequential, so no Intel OpenMP runtime (libiomp5md.dll) is

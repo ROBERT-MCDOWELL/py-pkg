@@ -367,13 +367,14 @@ Each one is applied only where needed. Where a source file is patched, it is res
 | Linux x86_64 | Builds end to end: torch, torchaudio, torchcodec, manylinux_2_28 |
 | Windows x64 | Builds end to end on an 11 GB machine with a 32 GB pagefile: torch, torchaudio, torchcodec |
 | macOS x86_64 | Builds end to end: torch, torchaudio, torchcodec 0.17 |
-| Linux aarch64, QEMU, macOS arm64, Windows arm64 | Written to the same pattern; first real runs pending |
-| Windows `cpu` and `cuda` backends, x64 and arm64 | Written from PyTorch's own Windows builds and NVIDIA's archives; first real runs pending |
+| Linux aarch64, QEMU, macOS arm64 | Written to the same pattern; first real runs pending |
+| Windows arm64 | First run (Windows 11 ARM64 VM, VS 2022 MSVC 19.44) got through the LunarG `warm` SDK install, Arm Performance Libraries, the CUDA 13.4.3 and cuDNN downloads, the native arm64 venvs and the checkouts, then stopped at torch's CMake configure on a script bug, fixed since: `RC` was used for exit codes, and CMake reads it as the resource compiler |
+| Windows `cpu` and `cuda` backends, x64 and arm64 | Written from PyTorch's own Windows builds and NVIDIA's archives; no torch build yet |
 
 Untested parts:
 
 - **macOS:** the unattended SDK installer run, and relinking and re-signing the bundled dylibs.
 - **Windows:** the PowerShell GPU check.
-- **Windows on ARM:** `msiexec /a` of Arm's MSI, torchcodec through BtbN's FFmpeg and `pkgconf`, and the Vulkan backend on Qualcomm's driver.
-- **Windows `cuda`:** the whole backend; on arm64 also torch's CUDA build itself, which PyTorch does not build for Windows on ARM.
+- **Windows on ARM:** the torch build itself, torchcodec through BtbN's FFmpeg and `pkgconf`, and the Vulkan backend on Qualcomm's driver.
+- **Windows `cuda`:** everything after the downloads; on arm64 also torch's CUDA build itself, which PyTorch does not build for Windows on ARM.
 - **Intel Mac:** relinking and re-signing the bundled dylibs (torch itself builds).
