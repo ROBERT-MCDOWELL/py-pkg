@@ -54,7 +54,7 @@ build-audiocpp.cmd --only windows-arm64-cpu-v82
 
 Then upload `audio.cpp\audiocpp-server-windows-arm64-*.zip` the same way.
 
-Both scripts build audio.cpp v0.9.5 by default; `--tag` must match e2a's `audiocpp_version` (lib/conf_models.py). An
+Both scripts build audio.cpp v0.9.6 by default; `--tag` must match e2a's `audiocpp_version` (lib/conf_models.py). An
 existing source tree is moved to `--tag` (local changes dropped): a tree from an earlier release is not rebuilt as is.
 Once a package is uploaded, remove `"enabled": False` from its entry in e2a's `audiocpp_packages`; e2a downloads it
 once per URL.

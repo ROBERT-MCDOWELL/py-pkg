@@ -108,7 +108,7 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-TAG=${TAG:-v0.9.5}
+TAG=${TAG:-v0.9.6}
 SRC=${SRC:-$PWD/audio.cpp}
 JOBS=${JOBS:-2}
 MODELS=${MODELS:-e2a}
