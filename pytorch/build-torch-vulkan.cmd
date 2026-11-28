@@ -181,8 +181,8 @@ echo   --cuda-arch "LIST"      CUDA architectures, e.g. "8.6;12.0" - quote the l
 echo                           auto = this machine's NVIDIA GPUs from nvidia-smi, else 7.5 8.0 8.6 9.0 10.0 12.0 like
 echo                           the official CUDA 13 wheels - each architecture adds hours to the build
 echo   NVCC_ALLOW_UNSUPPORTED=1  let nvcc accept a Visual Studio newer than its CUDA release supports
-echo   USE_FLASH_ATTENTION=0   like every USE_* variable, reaches torch's CMake: flash attention is the longest and most
-echo                           memory-hungry part of a CUDA build
+echo   USE_MEM_EFF_ATTENTION=0 like every USE_* variable, reaches torch's CMake: leaves out memory-efficient attention,
+echo                           47 cutlass kernels, the heaviest CUDA files; torch builds no flash attention with MSVC
 echo arm64 BLAS                                                                             [env]
 echo   --apl VER               Arm Performance Libraries for BLAS and LAPACK, 0 for none     [APL_VER] default: %APL_VER%
 echo                           the release PyTorch's own win_arm64 wheels use; unpacked from Arm's MSI without admin

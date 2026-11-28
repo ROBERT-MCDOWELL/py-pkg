@@ -207,7 +207,7 @@ Install the wheels with `pip install torch-2.14.1+vulkan-...whl torchaudio-...wh
 - **Bundled.** torch's install step puts the CUDA DLLs into `torch\lib`; the script adds cuDNN and every toolkit DLL a `torch\lib` DLL imports that is still missing (CUPTI's, for one). Users need only the NVIDIA driver.
 - **torchaudio** is built with its CUDA kernels. `torch.utils.cpp_extension` doesn't give nvcc's host compiler the `/Zc:__cplusplus /Zc:preprocessor` that torch's own build uses, and CUDA 13's CCCL stops at MSVC's traditional preprocessor (`C1189` in `preprocessor.h`), so the script passes both through `NVCC_APPEND_FLAGS`. Your own CUDA extensions built against these wheels on Windows need the same, e.g. `set NVCC_APPEND_FLAGS=-Xcompiler /Zc:__cplusplus -Xcompiler /Zc:preprocessor`.
 - **torchcodec** stays CPU-only (`ENABLE_CUDA=0`): NVDEC decoding would need an FFmpeg built with CUDA.
-- **Left out:** NCCL (none on Windows), MAGMA, cuSPARSELt, cuDSS. `USE_*` variables you set reach torch's CMake, e.g. `set USE_FLASH_ATTENTION=0` drops the longest and most memory-hungry part of the build.
+- **Left out:** NCCL (none on Windows), MAGMA, cuSPARSELt, cuDSS, and flash attention, which torch never builds with MSVC. `USE_*` variables you set reach torch's CMake, e.g. `set USE_MEM_EFF_ATTENTION=0` leaves out memory-efficient attention, 47 cutlass kernels and the heaviest CUDA files of the build; `scaled_dot_product_attention` then uses its other backends.
 - **Visual Studio.** nvcc refuses a Visual Studio newer than its CUDA release supports; `set NVCC_ALLOW_UNSUPPORTED=1` passes `-allow-unsupported-compiler` to every nvcc run.
 
 Building needs no GPU. On Windows on ARM this is a build PyTorch itself doesn't make, so the first runs will tell how far torch's CUDA code goes with ARM64 MSVC as nvcc's host compiler.
@@ -359,7 +359,7 @@ Each one is applied only where needed. Where a source file is patched, it is res
 | torchcodec skipped | No prebuilt FFmpeg for this target; install a local one (see [torchcodec and FFmpeg](#torchcodec-and-ffmpeg)), or on Windows drop `--no-install-ffmpeg` |
 | Windows: `the build venv's Python ... is win-amd64, not win-arm64` | uv found no native arm64 Python of that version: use 3.11 or newer, or install python.org's ARM64 build |
 | Windows `cuda`: nvcc rejects the Visual Studio version | `set NVCC_ALLOW_UNSUPPORTED=1`, or the Visual Studio 2022 release that CUDA supports |
-| Windows `cuda`: `C1002`, `LNK1102` or a killed `nvcc` in flash attention | `--jobs` lower, or `set USE_FLASH_ATTENTION=0` (every `USE_*` variable reaches torch's CMake) |
+| Windows `cuda`: `C1002`, `LNK1102` or a killed `nvcc` in `mem_eff_attention` | `--jobs` lower, or `set USE_MEM_EFF_ATTENTION=0` (every `USE_*` variable reaches torch's CMake) |
 | `torchcodec not available: Could not load libtorchcodec` | No runtime FFmpeg of a supported major where it's used (see [FFmpeg at runtime](#ffmpeg-at-runtime)); the probe prints the full list of tried versions |
 
 ## Status
@@ -371,7 +371,7 @@ Each one is applied only where needed. Where a source file is patched, it is res
 | macOS x86_64 | Builds end to end: torch, torchaudio, torchcodec 0.17 |
 | Linux aarch64, QEMU, macOS arm64 | Written to the same pattern; first real runs pending |
 | Windows arm64 `vulkan` and `cpu` | Build end to end on a Windows 11 ARM64 VM (VS 2022 MSVC 19.44, no GPU): torch, torchaudio, torchcodec 0.17 through BtbN's FFmpeg; the `cpu` probe passes all 8 ops, LAPACK included |
-| Windows arm64 `cuda` | torch 2.14.1 with CUDA 13.4.3 and cuDNN 9.28.1 builds on the same VM; torchaudio then failed on CCCL's preprocessor check, fixed since; torchaudio and torchcodec runs pending, and a run on an NVIDIA GPU |
+| Windows arm64 `cuda` | torch 2.14.1 with CUDA 13.4.3, cuDNN 9.28.1, CUPTI and APL builds on the same VM, for 7.5 to 12.0, at 1 job; torch's install step bundled the CUDA libraries through the `bin\x64` junction, the import scan added CUPTI's DLL. torchaudio then failed on CCCL's preprocessor check, fixed since; torchaudio and torchcodec runs pending, and a run on an NVIDIA GPU |
 | Windows x64 `cpu` and `cuda` | Same code paths as arm64; first real runs pending |
 
 Untested parts:
