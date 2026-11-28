@@ -1047,8 +1047,13 @@ exit /b 0
 setlocal
 set "USE_FFMPEG=0"
 set "BUILD_SOX=0"
-rem cuda: torchaudio's CUDA kernels (lfilter, RNN-T, forced alignment, CTC decoder) through torch.utils.cpp_extension
-if /i "%BK%"=="cuda" set "USE_CUDA=1"
+if /i not "%BK%"=="cuda" goto :ta_build
+rem cuda: torchaudio's CUDA kernels (lfilter, RNN-T, forced alignment, CTC decoder) through torch.utils.cpp_extension,
+rem whose nvcc runs on Windows lack the host compiler flags torch's own CMake passes: CUDA 13's CCCL stops at cl's
+rem traditional preprocessor (C1189 in preprocessor.h). NVCC_APPEND_FLAGS reaches every nvcc run
+set "USE_CUDA=1"
+if defined NVCC_APPEND_FLAGS (set "NVCC_APPEND_FLAGS=%NVCC_APPEND_FLAGS% -Xcompiler /Zc:__cplusplus -Xcompiler /Zc:preprocessor") else set "NVCC_APPEND_FLAGS=-Xcompiler /Zc:__cplusplus -Xcompiler /Zc:preprocessor"
+:ta_build
 set "BUILD_VERSION=%AUDIO%+%SUFFIX%"
 call :pip_wheel torchaudio %AUDIO% || (endlocal & exit /b 1)
 endlocal & set "WHL=%WHL%"

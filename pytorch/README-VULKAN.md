@@ -205,7 +205,8 @@ Install the wheels with `pip install torch-2.14.1+vulkan-...whl torchaudio-...wh
 - **arm64 folder names.** NVIDIA's Windows on ARM CUDA keeps its libraries in `lib\arm64` and DLLs in `bin\arm64`. torch's own CMake modules, its install step and `torch.utils.cpp_extension` (torchaudio's build) only know `lib\x64` and `bin\x64`, so the downloaded toolkit gets `lib\x64` and `bin\x64` junctions to them.
 - **Architectures.** `--cuda-arch auto` builds for the NVIDIA GPUs of the build machine (`nvidia-smi`). Without one it takes PyTorch's CUDA 13 list, `7.5;8.0;8.6;9.0;10.0;12.0`; each architecture adds hours. `12.0` code also runs on 12.1 GPUs.
 - **Bundled.** torch's install step puts the CUDA DLLs into `torch\lib`; the script adds cuDNN and every toolkit DLL a `torch\lib` DLL imports that is still missing (CUPTI's, for one). Users need only the NVIDIA driver.
-- **torchaudio** is built with its CUDA kernels. **torchcodec** stays CPU-only (`ENABLE_CUDA=0`): NVDEC decoding would need an FFmpeg built with CUDA.
+- **torchaudio** is built with its CUDA kernels. `torch.utils.cpp_extension` doesn't give nvcc's host compiler the `/Zc:__cplusplus /Zc:preprocessor` that torch's own build uses, and CUDA 13's CCCL stops at MSVC's traditional preprocessor (`C1189` in `preprocessor.h`), so the script passes both through `NVCC_APPEND_FLAGS`. Your own CUDA extensions built against these wheels on Windows need the same, e.g. `set NVCC_APPEND_FLAGS=-Xcompiler /Zc:__cplusplus -Xcompiler /Zc:preprocessor`.
+- **torchcodec** stays CPU-only (`ENABLE_CUDA=0`): NVDEC decoding would need an FFmpeg built with CUDA.
 - **Left out:** NCCL (none on Windows), MAGMA, cuSPARSELt, cuDSS. `USE_*` variables you set reach torch's CMake, e.g. `set USE_FLASH_ATTENTION=0` drops the longest and most memory-hungry part of the build.
 - **Visual Studio.** nvcc refuses a Visual Studio newer than its CUDA release supports; `set NVCC_ALLOW_UNSUPPORTED=1` passes `-allow-unsupported-compiler` to every nvcc run.
 
@@ -340,6 +341,7 @@ Each one is applied only where needed. Where a source file is patched, it is res
 | PyTorch has no S3 FFmpeg for Windows on ARM, so torchcodec was skipped | Windows arm64 | `btbn`: BtbN's LGPL `winarm64` shared build, MSVC import libraries and relocatable `.pc` files, pip's `pkgconf` as `pkg-config` |
 | torch's FindCUDAToolkit, its install step and `cpp_extension` know only `lib\x64` / `bin\x64`; the Windows arm64 CUDA has `lib\arm64` / `bin\arm64` | Windows arm64 `cuda` | `lib\x64` and `bin\x64` junctions to them in the downloaded toolkit, copies where junctions fail |
 | torch's install step takes cuDNN DLLs from the toolkit's `bin\` only, CUPTI's from `extras\CUPTI` only; the redistributable archives have neither | Windows `cuda` | cuDNN's DLLs copied into `torch\lib`, then every DLL a `torch\lib` DLL imports that the toolkit has (`dumpbin /dependents`, twice) |
+| `fatal error C1189` in CCCL's `preprocessor.h` while torchaudio builds: CUDA 13 needs MSVC's conforming preprocessor, which torch's own CMake turns on and `torch.utils.cpp_extension` doesn't | Windows `cuda` | `NVCC_APPEND_FLAGS=-Xcompiler /Zc:__cplusplus -Xcompiler /Zc:preprocessor` for the torchaudio build, the flags torch's CMake gives its own `.cu` files |
 | LunarG's latest SDK (1.4.363.1) has no runtime components zip, and the x64 zip's `x86\vulkan-1.dll` could be picked | Windows | the newest release `files.json` lists one for; the DLL is taken from the `X64\` folder, or the ARM64 zip's top level |
 
 ## Troubleshooting
@@ -368,13 +370,14 @@ Each one is applied only where needed. Where a source file is patched, it is res
 | Windows x64 | Builds end to end on an 11 GB machine with a 32 GB pagefile: torch, torchaudio, torchcodec |
 | macOS x86_64 | Builds end to end: torch, torchaudio, torchcodec 0.17 |
 | Linux aarch64, QEMU, macOS arm64 | Written to the same pattern; first real runs pending |
-| Windows arm64 | First run (Windows 11 ARM64 VM, VS 2022 MSVC 19.44) got through the LunarG `warm` SDK install, Arm Performance Libraries, the CUDA 13.4.3 and cuDNN downloads, the native arm64 venvs and the checkouts, then stopped at torch's CMake configure on a script bug, fixed since: `RC` was used for exit codes, and CMake reads it as the resource compiler |
-| Windows `cpu` and `cuda` backends, x64 and arm64 | Written from PyTorch's own Windows builds and NVIDIA's archives; no torch build yet |
+| Windows arm64 `vulkan` and `cpu` | Build end to end on a Windows 11 ARM64 VM (VS 2022 MSVC 19.44, no GPU): torch, torchaudio, torchcodec 0.17 through BtbN's FFmpeg; the `cpu` probe passes all 8 ops, LAPACK included |
+| Windows arm64 `cuda` | torch 2.14.1 with CUDA 13.4.3 and cuDNN 9.28.1 builds on the same VM; torchaudio then failed on CCCL's preprocessor check, fixed since; torchaudio and torchcodec runs pending, and a run on an NVIDIA GPU |
+| Windows x64 `cpu` and `cuda` | Same code paths as arm64; first real runs pending |
 
 Untested parts:
 
 - **macOS:** the unattended SDK installer run, and relinking and re-signing the bundled dylibs.
 - **Windows:** the PowerShell GPU check.
-- **Windows on ARM:** the torch build itself, torchcodec through BtbN's FFmpeg and `pkgconf`, and the Vulkan backend on Qualcomm's driver.
-- **Windows `cuda`:** everything after the downloads; on arm64 also torch's CUDA build itself, which PyTorch does not build for Windows on ARM.
+- **Windows on ARM:** the Vulkan backend on Qualcomm's driver - the VM has no GPU.
+- **Windows `cuda`:** torchaudio and torchcodec after the fix above, the DLL bundling, and the wheels on an NVIDIA GPU.
 - **Intel Mac:** relinking and re-signing the bundled dylibs (torch itself builds).
